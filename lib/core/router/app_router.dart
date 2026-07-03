@@ -7,6 +7,7 @@ import '../../presentation/screens/fuel/fuel_form_screen.dart';
 import '../../presentation/screens/fuel/fuel_list_screen.dart';
 import '../../presentation/screens/maintenance/maintenance_form_screen.dart';
 import '../../presentation/screens/maintenance/maintenance_list_screen.dart';
+import '../../presentation/screens/reports/reports_screen.dart';
 import '../../presentation/screens/vehicle_form/vehicle_form_screen.dart';
 import '../../presentation/screens/vehicle_selector/vehicle_selector_screen.dart';
 import '../../presentation/providers/vehicle_providers.dart';
@@ -93,7 +94,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: RouteNames.reports,
-            builder: (_, __) => const _PlaceholderScreen('Relatórios'),
+            builder: (_, __) => const ReportsScreen(),
           ),
           GoRoute(
             path: RouteNames.settings,

@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/router/route_names.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../domain/usecases/fuel/calculate_avg_consumption_usecase.dart';
-import '../../../domain/usecases/fuel/get_fuel_expenses_usecase.dart';
+import '../../../domain/usecases/reports/get_monthly_overview_usecase.dart';
 import '../../../domain/usecases/maintenance/predict_next_maintenance_usecase.dart';
 import '../../providers/fuel_providers.dart';
 import '../../providers/maintenance_providers.dart';
@@ -40,23 +40,13 @@ class DashboardScreen extends ConsumerWidget {
     );
 
     // Gastos do mês = soma de manutenções + abastecimentos do mês atual.
-    // TODO: quando o módulo de Relatórios existir, mover esse cálculo
-    // para um usecase próprio (ex: GetMonthlyOverviewUsecase) que
-    // combine as duas fontes de forma testável isoladamente.
-    final monthlyFuelExpense = fuelAsync.maybeWhen(
-      data: (list) => const GetFuelExpensesUsecase().monthly(list),
-      orElse: () => 0.0,
-    );
-    final monthlyMaintenanceExpense = maintenanceAsync.maybeWhen(
-      data: (list) {
-        final now = DateTime.now();
-        return list
-            .where((m) => m.date.year == now.year && m.date.month == now.month)
-            .fold<double>(0, (sum, m) => sum + m.cost);
-      },
-      orElse: () => 0.0,
-    );
-    final totalMonthlyExpense = monthlyFuelExpense + monthlyMaintenanceExpense;
+    // Gastos do mês — agora usando o usecase compartilhado com Relatórios,
+    // garantindo que os dois lugares sempre mostrem o mesmo número.
+    final totalMonthlyExpense = const GetMonthlyOverviewUsecase()
+        .currentMonthTotal(
+          fuel: fuelAsync.value ?? [],
+          maintenance: maintenanceAsync.value ?? [],
+        );
 
     return Scaffold(
       appBar: AppBar(title: const Text('Dashboard')),
