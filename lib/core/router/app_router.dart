@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../domain/entities/vehicle_entity.dart';
 import '../../presentation/screens/dashboard/dashboard_screen.dart';
+import '../../presentation/screens/fuel/fuel_form_screen.dart';
+import '../../presentation/screens/fuel/fuel_list_screen.dart';
 import '../../presentation/screens/maintenance/maintenance_form_screen.dart';
 import '../../presentation/screens/maintenance/maintenance_list_screen.dart';
 import '../../presentation/screens/vehicle_form/vehicle_form_screen.dart';
@@ -67,6 +69,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
+      GoRoute(
+        path: RouteNames.fuelForm,
+        builder: (context, state) {
+          final args = state.extra as FuelFormArgs;
+          return FuelFormScreen(vehicleId: args.vehicleId, fuel: args.fuel);
+        },
+      ),
       ShellRoute(
         builder: (context, state, child) => MainShell(child: child),
         routes: [
@@ -80,7 +89,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: RouteNames.fuelList,
-            builder: (_, __) => const _PlaceholderScreen('Abastecimentos'),
+            builder: (_, __) => const FuelListScreen(),
           ),
           GoRoute(
             path: RouteNames.reports,

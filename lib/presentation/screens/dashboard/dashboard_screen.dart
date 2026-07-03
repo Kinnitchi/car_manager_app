@@ -3,11 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/router/route_names.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../domain/usecases/fuel/calculate_avg_consumption_usecase.dart';
+import '../../../domain/usecases/fuel/get_fuel_expenses_usecase.dart';
+import '../../../domain/usecases/maintenance/predict_next_maintenance_usecase.dart';
+import '../../providers/fuel_providers.dart';
 import '../../providers/maintenance_providers.dart';
 import '../../providers/vehicle_providers.dart';
 import '../../widgets/stat_card.dart';
 import '../../widgets/vehicle_summary_header.dart';
-import '../../../domain/usecases/maintenance/predict_next_maintenance_usecase.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -21,6 +24,8 @@ class DashboardScreen extends ConsumerWidget {
     }
 
     final maintenanceAsync = ref.watch(maintenanceListProvider(vehicle.id!));
+    final fuelAsync = ref.watch(fuelListProvider(vehicle.id!));
+
     final prediction = maintenanceAsync.maybeWhen(
       data: (list) => const PredictNextMaintenanceUsecase().call(
         list,
@@ -29,12 +34,37 @@ class DashboardScreen extends ConsumerWidget {
       orElse: () => null,
     );
 
+    final consumption = fuelAsync.maybeWhen(
+      data: (list) => const CalculateAvgConsumptionUsecase().call(list),
+      orElse: () => const AvgConsumptionResult(),
+    );
+
+    // Gastos do mês = soma de manutenções + abastecimentos do mês atual.
+    // TODO: quando o módulo de Relatórios existir, mover esse cálculo
+    // para um usecase próprio (ex: GetMonthlyOverviewUsecase) que
+    // combine as duas fontes de forma testável isoladamente.
+    final monthlyFuelExpense = fuelAsync.maybeWhen(
+      data: (list) => const GetFuelExpensesUsecase().monthly(list),
+      orElse: () => 0.0,
+    );
+    final monthlyMaintenanceExpense = maintenanceAsync.maybeWhen(
+      data: (list) {
+        final now = DateTime.now();
+        return list
+            .where((m) => m.date.year == now.year && m.date.month == now.month)
+            .fold<double>(0, (sum, m) => sum + m.cost);
+      },
+      orElse: () => 0.0,
+    );
+    final totalMonthlyExpense = monthlyFuelExpense + monthlyMaintenanceExpense;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Dashboard')),
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(vehicleListProvider);
           ref.invalidate(maintenanceListProvider(vehicle.id!));
+          ref.invalidate(fuelListProvider(vehicle.id!));
         },
         child: ListView(
           padding: const EdgeInsets.all(16),
@@ -66,18 +96,45 @@ class DashboardScreen extends ConsumerWidget {
                   iconColor: Colors.blue,
                 ),
 
-                // TODO: substituir por dado real quando o CRUD de
-                // Abastecimento existir.
-                StatCard(
-                  icon: Icons.local_gas_station,
-                  title: 'Último abastecimento',
-                  value: 'Sem registros',
-                  subtitle: 'Nenhum abastecimento ainda',
-                  iconColor: Colors.orange,
-                  onTap: () => context.go(RouteNames.fuelList),
+                // Último abastecimento — dado real.
+                fuelAsync.when(
+                  data: (list) {
+                    if (list.isEmpty) {
+                      return StatCard(
+                        icon: Icons.local_gas_station,
+                        title: 'Último abastecimento',
+                        value: 'Sem registros',
+                        subtitle: 'Nenhum abastecimento ainda',
+                        iconColor: Colors.orange,
+                        onTap: () => context.go(RouteNames.fuelList),
+                      );
+                    }
+                    final last = list.first;
+                    return StatCard(
+                      icon: Icons.local_gas_station,
+                      title: 'Último abastecimento',
+                      value: Formatters.currency(last.totalValue),
+                      subtitle: Formatters.date(last.date),
+                      iconColor: Colors.orange,
+                      onTap: () => context.go(RouteNames.fuelList),
+                    );
+                  },
+                  loading: () => const StatCard(
+                    icon: Icons.local_gas_station,
+                    title: 'Último abastecimento',
+                    value: '...',
+                    iconColor: Colors.orange,
+                  ),
+                  error: (_, __) => StatCard(
+                    icon: Icons.local_gas_station,
+                    title: 'Último abastecimento',
+                    value: 'Erro',
+                    iconColor: Colors.orange,
+                    onTap: () => context.go(RouteNames.fuelList),
+                  ),
                 ),
 
-                // Agora com dado real do histórico de manutenções.
+                // Última manutenção — dado real.
                 maintenanceAsync.when(
                   data: (list) {
                     if (list.isEmpty) {
@@ -90,7 +147,7 @@ class DashboardScreen extends ConsumerWidget {
                         onTap: () => context.go(RouteNames.maintenanceList),
                       );
                     }
-                    final last = list.first; // já vem ordenado desc
+                    final last = list.first;
                     return StatCard(
                       icon: Icons.build,
                       title: 'Última manutenção',
@@ -115,7 +172,7 @@ class DashboardScreen extends ConsumerWidget {
                   ),
                 ),
 
-                // Previsão real, calculada pelo PredictNextMaintenanceUsecase.
+                // Próxima manutenção — previsão real.
                 StatCard(
                   icon: prediction != null && prediction.isOverdue
                       ? Icons.warning_amber
@@ -136,23 +193,27 @@ class DashboardScreen extends ConsumerWidget {
                   onTap: () => context.go(RouteNames.maintenanceList),
                 ),
 
-                // TODO: substituir pelo gasto real do mês
-                // (soma de Fuel + Maintenance do mês atual).
+                // Gastos do mês — combinação real de Fuel + Maintenance.
                 StatCard(
                   icon: Icons.attach_money,
                   title: 'Gastos do mês',
-                  value: 'R\$ 0,00',
+                  value: Formatters.currency(totalMonthlyExpense),
                   iconColor: Colors.red,
                   onTap: () => context.go(RouteNames.reports),
                 ),
 
-                // TODO: substituir pelo calculate_avg_consumption_usecase.dart.
+                // Consumo médio — cálculo real.
                 StatCard(
                   icon: Icons.bar_chart,
                   title: 'Consumo médio',
-                  value: '-- km/l',
+                  value: consumption.hasData
+                      ? '${consumption.averageKmPerLiter!.toStringAsFixed(1)} km/l'
+                      : '-- km/l',
+                  subtitle: consumption.hasData
+                      ? null
+                      : 'Registre 2+ tanques cheios',
                   iconColor: Colors.teal,
-                  onTap: () => context.go(RouteNames.reports),
+                  onTap: () => context.go(RouteNames.fuelList),
                 ),
               ],
             ),
