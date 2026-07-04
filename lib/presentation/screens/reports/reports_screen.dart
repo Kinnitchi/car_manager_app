@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../domain/usecases/fuel/calculate_avg_consumption_usecase.dart';
 import '../../../domain/usecases/reports/get_consumption_trend_usecase.dart';
@@ -10,6 +11,7 @@ import '../../providers/vehicle_providers.dart';
 import '../../widgets/consumption_trend_chart.dart';
 import '../../widgets/expense_breakdown_chart.dart';
 import '../../widgets/monthly_expense_chart.dart';
+import '../../widgets/responsive_center.dart';
 
 class ReportsScreen extends ConsumerWidget {
   const ReportsScreen({super.key});
@@ -66,88 +68,95 @@ class ReportsScreen extends ConsumerWidget {
     final consumption = const CalculateAvgConsumptionUsecase().call(fuelList);
     final consumptionTrend = const GetConsumptionTrendUsecase().call(fuelList);
 
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(title: const Text('Relatórios')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: _SummaryCard(
-                  label: 'Gasto no mês',
-                  value: Formatters.currency(monthTotal),
-                  icon: Icons.calendar_month,
-                  color: Colors.blue,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _SummaryCard(
-                  label: 'Gasto no ano',
-                  value: Formatters.currency(yearTotal),
-                  icon: Icons.event_note,
-                  color: Colors.deepPurple,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          _SectionTitle(
-            title: 'Gastos por mês',
-            subtitle: 'Combustível vs Manutenção — últimos 6 meses',
-          ),
-          const SizedBox(height: 12),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  MonthlyExpenseChart(data: monthly),
-                  const SizedBox(height: 12),
-                  const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _LegendDot(color: Colors.orange, label: 'Combustível'),
-                      SizedBox(width: 16),
-                      _LegendDot(color: Colors.green, label: 'Manutenção'),
-                    ],
+      body: ResponsiveCenter(
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: _SummaryCard(
+                    label: 'Gasto no mês',
+                    value: Formatters.currency(monthTotal),
+                    icon: Icons.calendar_month,
+                    color: theme.colorScheme.primary,
                   ),
-                ],
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _SummaryCard(
+                    label: 'Gasto no ano',
+                    value: Formatters.currency(yearTotal),
+                    icon: Icons.event_note,
+                    color: AppColors.upcoming,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            const _SectionTitle(
+              title: 'Gastos por mês',
+              subtitle: 'Combustível vs Manutenção — últimos 6 meses',
+            ),
+            const SizedBox(height: 12),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    MonthlyExpenseChart(data: monthly),
+                    const SizedBox(height: 12),
+                    const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _LegendDot(color: AppColors.fuel, label: 'Combustível'),
+                        SizedBox(width: 16),
+                        _LegendDot(
+                          color: AppColors.maintenance,
+                          label: 'Manutenção',
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 24),
-          _SectionTitle(
-            title: 'Divisão do mês atual',
-            subtitle: 'Para onde foi o dinheiro este mês',
-          ),
-          const SizedBox(height: 12),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: ExpenseBreakdownChart(
-                fuelTotal: currentMonthFuel,
-                maintenanceTotal: currentMonthMaintenance,
+            const SizedBox(height: 24),
+            const _SectionTitle(
+              title: 'Divisão do mês atual',
+              subtitle: 'Para onde foi o dinheiro este mês',
+            ),
+            const SizedBox(height: 12),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: ExpenseBreakdownChart(
+                  fuelTotal: currentMonthFuel,
+                  maintenanceTotal: currentMonthMaintenance,
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 24),
-          _SectionTitle(
-            title: 'Evolução do consumo',
-            subtitle: consumption.hasData
-                ? 'Média geral: ${consumption.averageKmPerLiter!.toStringAsFixed(1)} km/l'
-                : 'km/l por tanque cheio',
-          ),
-          const SizedBox(height: 12),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: ConsumptionTrendChart(points: consumptionTrend),
+            const SizedBox(height: 24),
+            _SectionTitle(
+              title: 'Evolução do consumo',
+              subtitle: consumption.hasData
+                  ? 'Média geral: ${consumption.averageKmPerLiter!.toStringAsFixed(1)} km/l'
+                  : 'km/l por tanque cheio',
             ),
-          ),
-          const SizedBox(height: 16),
-        ],
+            const SizedBox(height: 12),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: ConsumptionTrendChart(points: consumptionTrend),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
       ),
     );
   }
