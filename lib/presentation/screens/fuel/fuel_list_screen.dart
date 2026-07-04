@@ -7,6 +7,7 @@ import '../../../domain/usecases/fuel/calculate_avg_consumption_usecase.dart';
 import '../../providers/fuel_providers.dart';
 import '../../providers/vehicle_providers.dart';
 import '../../widgets/fuel_card.dart';
+import '../../widgets/responsive_center.dart';
 import 'fuel_form_screen.dart';
 
 class FuelListScreen extends ConsumerWidget {
@@ -24,35 +25,40 @@ class FuelListScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Abastecimentos')),
-      body: fuelAsync.when(
-        data: (list) {
-          final consumption = const CalculateAvgConsumptionUsecase().call(list);
+      body: ResponsiveCenter(
+        child: fuelAsync.when(
+          data: (list) {
+            final consumption = const CalculateAvgConsumptionUsecase().call(
+              list,
+            );
 
-          if (list.isEmpty) {
-            return const _EmptyState();
-          }
+            if (list.isEmpty) {
+              return const _EmptyState();
+            }
 
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              if (consumption.hasData) _ConsumptionBanner(result: consumption),
-              if (consumption.hasData) const SizedBox(height: 16),
-              ...list.map(
-                (fuel) => FuelCard(
-                  fuel: fuel,
-                  onTap: () => context.push(
-                    RouteNames.fuelForm,
-                    extra: FuelFormArgs(vehicleId: vehicle.id!, fuel: fuel),
+            return ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                if (consumption.hasData)
+                  _ConsumptionBanner(result: consumption),
+                if (consumption.hasData) const SizedBox(height: 16),
+                ...list.map(
+                  (fuel) => FuelCard(
+                    fuel: fuel,
+                    onTap: () => context.push(
+                      RouteNames.fuelForm,
+                      extra: FuelFormArgs(vehicleId: vehicle.id!, fuel: fuel),
+                    ),
+                    onDelete: () => _confirmDelete(context, ref, fuel),
                   ),
-                  onDelete: () => _confirmDelete(context, ref, fuel),
                 ),
-              ),
-            ],
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) =>
-            Center(child: Text('Erro ao carregar abastecimentos: $error')),
+              ],
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) =>
+              Center(child: Text('Erro ao carregar abastecimentos: $error')),
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push(
