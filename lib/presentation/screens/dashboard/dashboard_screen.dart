@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../providers/notification_providers.dart';
 import '../../../core/router/route_names.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../domain/usecases/fuel/calculate_avg_consumption_usecase.dart';
 import '../../../domain/usecases/reports/get_monthly_overview_usecase.dart';
@@ -9,6 +11,7 @@ import '../../../domain/usecases/maintenance/predict_next_maintenance_usecase.da
 import '../../providers/fuel_providers.dart';
 import '../../providers/maintenance_providers.dart';
 import '../../providers/vehicle_providers.dart';
+import '../../widgets/responsive_center.dart';
 import '../../widgets/stat_card.dart';
 import '../../widgets/vehicle_summary_header.dart';
 
@@ -34,6 +37,33 @@ class DashboardScreen extends ConsumerWidget {
       orElse: () => null,
     );
 
+    // Alerta local (não agendado) quando a manutenção prevista está
+    // atrasada. Roda após o build para não disparar side-effects
+    // durante a renderização, e usa notifiedMaintenanceKeysProvider
+    // para não repetir o alerta a cada rebuild da tela.
+    if (prediction != null && prediction.isOverdue) {
+      final key = '${vehicle.id}_${prediction.type.name}';
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final notified = ref.read(notifiedMaintenanceKeysProvider);
+        if (!notified.contains(key)) {
+          ref
+              .read(notificationServiceProvider)
+              .showNow(
+                id: vehicle.id! + prediction.type.index,
+                title: '${prediction.type.label} atrasada',
+                body:
+                    '${vehicle.brand} ${vehicle.model} está '
+                    '${(-prediction.kmRemaining).toStringAsFixed(0)} km '
+                    'além do previsto.',
+              );
+          ref.read(notifiedMaintenanceKeysProvider.notifier).state = {
+            ...notified,
+            key,
+          };
+        }
+      });
+    }
+
     final consumption = fuelAsync.maybeWhen(
       data: (list) => const CalculateAvgConsumptionUsecase().call(list),
       orElse: () => const AvgConsumptionResult(),
@@ -48,6 +78,8 @@ class DashboardScreen extends ConsumerWidget {
           maintenance: maintenanceAsync.value ?? [],
         );
 
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(title: const Text('Dashboard')),
       body: RefreshIndicator(
@@ -56,160 +88,174 @@ class DashboardScreen extends ConsumerWidget {
           ref.invalidate(maintenanceListProvider(vehicle.id!));
           ref.invalidate(fuelListProvider(vehicle.id!));
         },
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            VehicleSummaryHeader(
-              vehicle: vehicle,
-              onSwapVehicle: () => context.push(RouteNames.vehicleSelector),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Resumo',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 1.3,
-              children: [
-                StatCard(
-                  icon: Icons.speed,
-                  title: 'Quilometragem atual',
-                  value: '${vehicle.currentMileage.toStringAsFixed(0)} km',
-                  iconColor: Colors.blue,
+        child: ResponsiveCenter(
+          maxWidth: 900,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              VehicleSummaryHeader(
+                vehicle: vehicle,
+                onSwapVehicle: () => context.push(RouteNames.vehicleSelector),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Resumo',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
                 ),
+              ),
+              const SizedBox(height: 12),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final crossAxisCount = constraints.maxWidth >= 560 ? 3 : 2;
+                  return GridView(
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: crossAxisCount,
+                      mainAxisSpacing: 12,
+                      crossAxisSpacing: 12,
+                      // Altura fixa (em vez de aspect ratio) porque o
+                      // conteúdo do StatCard tem altura praticamente
+                      // constante independente da largura da coluna.
+                      mainAxisExtent: 168,
+                    ),
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    children: [
+                      StatCard(
+                        icon: Icons.speed,
+                        title: 'Quilometragem atual',
+                        value:
+                            '${vehicle.currentMileage.toStringAsFixed(0)} km',
+                      ),
 
-                // Último abastecimento — dado real.
-                fuelAsync.when(
-                  data: (list) {
-                    if (list.isEmpty) {
-                      return StatCard(
-                        icon: Icons.local_gas_station,
-                        title: 'Último abastecimento',
-                        value: 'Sem registros',
-                        subtitle: 'Nenhum abastecimento ainda',
-                        iconColor: Colors.orange,
-                        onTap: () => context.go(RouteNames.fuelList),
-                      );
-                    }
-                    final last = list.first;
-                    return StatCard(
-                      icon: Icons.local_gas_station,
-                      title: 'Último abastecimento',
-                      value: Formatters.currency(last.totalValue),
-                      subtitle: Formatters.date(last.date),
-                      iconColor: Colors.orange,
-                      onTap: () => context.go(RouteNames.fuelList),
-                    );
-                  },
-                  loading: () => const StatCard(
-                    icon: Icons.local_gas_station,
-                    title: 'Último abastecimento',
-                    value: '...',
-                    iconColor: Colors.orange,
-                  ),
-                  error: (_, __) => StatCard(
-                    icon: Icons.local_gas_station,
-                    title: 'Último abastecimento',
-                    value: 'Erro',
-                    iconColor: Colors.orange,
-                    onTap: () => context.go(RouteNames.fuelList),
-                  ),
-                ),
+                      // Último abastecimento — dado real.
+                      fuelAsync.when(
+                        data: (list) {
+                          if (list.isEmpty) {
+                            return StatCard(
+                              icon: Icons.local_gas_station,
+                              title: 'Último abastecimento',
+                              value: 'Sem registros',
+                              subtitle: 'Nenhum abastecimento ainda',
+                              iconColor: AppColors.fuel,
+                              onTap: () => context.go(RouteNames.fuelList),
+                            );
+                          }
+                          final last = list.first;
+                          return StatCard(
+                            icon: Icons.local_gas_station,
+                            title: 'Último abastecimento',
+                            value: Formatters.currency(last.totalValue),
+                            subtitle: Formatters.date(last.date),
+                            iconColor: AppColors.fuel,
+                            onTap: () => context.go(RouteNames.fuelList),
+                          );
+                        },
+                        loading: () => const StatCard(
+                          icon: Icons.local_gas_station,
+                          title: 'Último abastecimento',
+                          value: '...',
+                          iconColor: AppColors.fuel,
+                        ),
+                        error: (_, __) => StatCard(
+                          icon: Icons.local_gas_station,
+                          title: 'Último abastecimento',
+                          value: 'Erro',
+                          iconColor: AppColors.fuel,
+                          onTap: () => context.go(RouteNames.fuelList),
+                        ),
+                      ),
 
-                // Última manutenção — dado real.
-                maintenanceAsync.when(
-                  data: (list) {
-                    if (list.isEmpty) {
-                      return StatCard(
-                        icon: Icons.build,
-                        title: 'Última manutenção',
-                        value: 'Sem registros',
-                        subtitle: 'Nenhuma manutenção ainda',
-                        iconColor: Colors.green,
+                      // Última manutenção — dado real.
+                      maintenanceAsync.when(
+                        data: (list) {
+                          if (list.isEmpty) {
+                            return StatCard(
+                              icon: Icons.build,
+                              title: 'Última manutenção',
+                              value: 'Sem registros',
+                              subtitle: 'Nenhuma manutenção ainda',
+                              iconColor: AppColors.maintenance,
+                              onTap: () =>
+                                  context.go(RouteNames.maintenanceList),
+                            );
+                          }
+                          final last = list.first;
+                          return StatCard(
+                            icon: Icons.build,
+                            title: 'Última manutenção',
+                            value: last.type.label,
+                            subtitle: Formatters.date(last.date),
+                            iconColor: AppColors.maintenance,
+                            onTap: () => context.go(RouteNames.maintenanceList),
+                          );
+                        },
+                        loading: () => const StatCard(
+                          icon: Icons.build,
+                          title: 'Última manutenção',
+                          value: '...',
+                          iconColor: AppColors.maintenance,
+                        ),
+                        error: (_, __) => StatCard(
+                          icon: Icons.build,
+                          title: 'Última manutenção',
+                          value: 'Erro',
+                          iconColor: AppColors.maintenance,
+                          onTap: () => context.go(RouteNames.maintenanceList),
+                        ),
+                      ),
+
+                      // Próxima manutenção — previsão real.
+                      StatCard(
+                        icon: prediction != null && prediction.isOverdue
+                            ? Icons.warning_amber
+                            : Icons.event_available,
+                        title: 'Próxima manutenção',
+                        value: prediction == null
+                            ? 'Não prevista'
+                            : prediction.type.label,
+                        subtitle: prediction == null
+                            ? 'Registre manutenções para prever'
+                            : prediction.isOverdue
+                            ? 'Atrasada em '
+                                  '${(-prediction.kmRemaining).toStringAsFixed(0)} km'
+                            : 'Em ${prediction.kmRemaining.toStringAsFixed(0)} km',
+                        iconColor: prediction != null && prediction.isOverdue
+                            ? theme.colorScheme.error
+                            : AppColors.upcoming,
                         onTap: () => context.go(RouteNames.maintenanceList),
-                      );
-                    }
-                    final last = list.first;
-                    return StatCard(
-                      icon: Icons.build,
-                      title: 'Última manutenção',
-                      value: last.type.label,
-                      subtitle: Formatters.date(last.date),
-                      iconColor: Colors.green,
-                      onTap: () => context.go(RouteNames.maintenanceList),
-                    );
-                  },
-                  loading: () => const StatCard(
-                    icon: Icons.build,
-                    title: 'Última manutenção',
-                    value: '...',
-                    iconColor: Colors.green,
-                  ),
-                  error: (_, __) => StatCard(
-                    icon: Icons.build,
-                    title: 'Última manutenção',
-                    value: 'Erro',
-                    iconColor: Colors.green,
-                    onTap: () => context.go(RouteNames.maintenanceList),
-                  ),
-                ),
+                      ),
 
-                // Próxima manutenção — previsão real.
-                StatCard(
-                  icon: prediction != null && prediction.isOverdue
-                      ? Icons.warning_amber
-                      : Icons.event_available,
-                  title: 'Próxima manutenção',
-                  value: prediction == null
-                      ? 'Não prevista'
-                      : prediction.type.label,
-                  subtitle: prediction == null
-                      ? 'Registre manutenções para prever'
-                      : prediction.isOverdue
-                      ? 'Atrasada em '
-                            '${(-prediction.kmRemaining).toStringAsFixed(0)} km'
-                      : 'Em ${prediction.kmRemaining.toStringAsFixed(0)} km',
-                  iconColor: prediction != null && prediction.isOverdue
-                      ? Colors.red
-                      : Colors.purple,
-                  onTap: () => context.go(RouteNames.maintenanceList),
-                ),
+                      // Gastos do mês — combinação real de Fuel + Maintenance.
+                      StatCard(
+                        icon: Icons.attach_money,
+                        title: 'Gastos do mês',
+                        value: Formatters.currency(totalMonthlyExpense),
+                        iconColor: theme.colorScheme.error,
+                        onTap: () => context.go(RouteNames.reports),
+                      ),
 
-                // Gastos do mês — combinação real de Fuel + Maintenance.
-                StatCard(
-                  icon: Icons.attach_money,
-                  title: 'Gastos do mês',
-                  value: Formatters.currency(totalMonthlyExpense),
-                  iconColor: Colors.red,
-                  onTap: () => context.go(RouteNames.reports),
-                ),
-
-                // Consumo médio — cálculo real.
-                StatCard(
-                  icon: Icons.bar_chart,
-                  title: 'Consumo médio',
-                  value: consumption.hasData
-                      ? '${consumption.averageKmPerLiter!.toStringAsFixed(1)} km/l'
-                      : '-- km/l',
-                  subtitle: consumption.hasData
-                      ? null
-                      : 'Registre 2+ tanques cheios',
-                  iconColor: Colors.teal,
-                  onTap: () => context.go(RouteNames.fuelList),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            _QuickActions(),
-          ],
+                      // Consumo médio — cálculo real.
+                      StatCard(
+                        icon: Icons.bar_chart,
+                        title: 'Consumo médio',
+                        value: consumption.hasData
+                            ? '${consumption.averageKmPerLiter!.toStringAsFixed(1)} km/l'
+                            : '-- km/l',
+                        subtitle: consumption.hasData
+                            ? null
+                            : 'Registre 2+ tanques cheios',
+                        iconColor: AppColors.consumption,
+                        onTap: () => context.go(RouteNames.fuelList),
+                      ),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 20),
+              _QuickActions(),
+            ],
+          ),
         ),
       ),
     );
