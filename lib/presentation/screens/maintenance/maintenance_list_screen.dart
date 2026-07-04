@@ -8,6 +8,7 @@ import '../../../domain/entities/maintenance_entity.dart';
 import '../../providers/maintenance_providers.dart';
 import '../../providers/vehicle_providers.dart';
 import '../../widgets/maintenance_card.dart';
+import '../../widgets/responsive_center.dart';
 import 'maintenance_form_screen.dart';
 
 class MaintenanceListScreen extends ConsumerStatefulWidget {
@@ -60,85 +61,87 @@ class _MaintenanceListScreenState extends ConsumerState<MaintenanceListScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Manutenções')),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Column(
-              children: [
-                if (prediction != null)
-                  _PredictionBanner(prediction: prediction),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: 'Buscar por tipo, descrição ou oficina...',
-                    prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  onChanged: (_) => setState(() {}),
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  height: 40,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    children: [
-                      _FilterChip(
-                        label: 'Todos',
-                        selected: _filterType == null,
-                        onTap: () => setState(() => _filterType = null),
+      body: ResponsiveCenter(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Column(
+                children: [
+                  if (prediction != null)
+                    _PredictionBanner(prediction: prediction),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Buscar por tipo, descrição ou oficina...',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      ...MaintenanceType.values.map(
-                        (type) => Padding(
-                          padding: const EdgeInsets.only(left: 8),
-                          child: _FilterChip(
-                            label: type.label,
-                            selected: _filterType == type,
-                            onTap: () => setState(() => _filterType = type),
+                    ),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 40,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: [
+                        _FilterChip(
+                          label: 'Todos',
+                          selected: _filterType == null,
+                          onTap: () => setState(() => _filterType = null),
+                        ),
+                        ...MaintenanceType.values.map(
+                          (type) => Padding(
+                            padding: const EdgeInsets.only(left: 8),
+                            child: _FilterChip(
+                              label: type.label,
+                              selected: _filterType == type,
+                              onTap: () => setState(() => _filterType = type),
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          Expanded(
-            child: maintenanceAsync.when(
-              data: (list) {
-                final filtered = _applyFilters(list);
-                if (filtered.isEmpty) {
-                  return _EmptyState(hasAnyRecord: list.isNotEmpty);
-                }
-                return ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  itemCount: filtered.length,
-                  itemBuilder: (context, index) {
-                    final maintenance = filtered[index];
-                    return MaintenanceCard(
-                      maintenance: maintenance,
-                      onTap: () => context.push(
-                        RouteNames.maintenanceForm,
-                        extra: MaintenanceFormArgs(
-                          vehicleId: vehicle.id!,
-                          maintenance: maintenance,
+            Expanded(
+              child: maintenanceAsync.when(
+                data: (list) {
+                  final filtered = _applyFilters(list);
+                  if (filtered.isEmpty) {
+                    return _EmptyState(hasAnyRecord: list.isNotEmpty);
+                  }
+                  return ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    itemCount: filtered.length,
+                    itemBuilder: (context, index) {
+                      final maintenance = filtered[index];
+                      return MaintenanceCard(
+                        maintenance: maintenance,
+                        onTap: () => context.push(
+                          RouteNames.maintenanceForm,
+                          extra: MaintenanceFormArgs(
+                            vehicleId: vehicle.id!,
+                            maintenance: maintenance,
+                          ),
                         ),
-                      ),
-                      onDelete: () => _confirmDelete(context, maintenance),
-                    );
-                  },
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, _) =>
-                  Center(child: Text('Erro ao carregar manutenções: $error')),
+                        onDelete: () => _confirmDelete(context, maintenance),
+                      );
+                    },
+                  );
+                },
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (error, _) =>
+                    Center(child: Text('Erro ao carregar manutenções: $error')),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push(

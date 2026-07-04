@@ -261,12 +261,12 @@ class _MaintenanceFormScreenState extends ConsumerState<MaintenanceFormScreen> {
             FilledButton(
               onPressed: _isSaving ? null : _save,
               child: _isSaving
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Colors.white,
+                        color: Theme.of(context).colorScheme.onPrimary,
                       ),
                     )
                   : Text(_isEditing ? 'Salvar Alterações' : 'Registrar'),
