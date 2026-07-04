@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
 
 class ExpenseBreakdownChart extends StatelessWidget {
@@ -42,7 +43,7 @@ class ExpenseBreakdownChart extends StatelessWidget {
                   if (fuelTotal > 0)
                     PieChartSectionData(
                       value: fuelTotal,
-                      color: Colors.orange,
+                      color: AppColors.fuel,
                       title: '${(fuelTotal / total * 100).toStringAsFixed(0)}%',
                       radius: 56,
                       titleStyle: const TextStyle(
@@ -54,7 +55,7 @@ class ExpenseBreakdownChart extends StatelessWidget {
                   if (maintenanceTotal > 0)
                     PieChartSectionData(
                       value: maintenanceTotal,
-                      color: Colors.green,
+                      color: AppColors.maintenance,
                       title:
                           '${(maintenanceTotal / total * 100).toStringAsFixed(0)}%',
                       radius: 56,
@@ -74,13 +75,13 @@ class ExpenseBreakdownChart extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _LegendItem(
-                  color: Colors.orange,
+                  color: AppColors.fuel,
                   label: 'Combustível',
                   value: Formatters.currency(fuelTotal),
                 ),
                 const SizedBox(height: 12),
                 _LegendItem(
-                  color: Colors.green,
+                  color: AppColors.maintenance,
                   label: 'Manutenção',
                   value: Formatters.currency(maintenanceTotal),
                 ),

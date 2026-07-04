@@ -1,6 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../core/theme/app_colors.dart';
 import '../../domain/entities/report_entities.dart';
 
 class MonthlyExpenseChart extends StatelessWidget {
@@ -83,7 +84,7 @@ class MonthlyExpenseChart extends StatelessWidget {
               barRods: [
                 BarChartRodData(
                   toY: entry.fuelTotal,
-                  color: Colors.orange,
+                  color: AppColors.fuel,
                   width: 10,
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(4),
@@ -91,7 +92,7 @@ class MonthlyExpenseChart extends StatelessWidget {
                 ),
                 BarChartRodData(
                   toY: entry.maintenanceTotal,
-                  color: Colors.green,
+                  color: AppColors.maintenance,
                   width: 10,
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(4),

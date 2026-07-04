@@ -192,12 +192,12 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
             FilledButton(
               onPressed: _isSaving ? null : _save,
               child: _isSaving
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Colors.white,
+                        color: Theme.of(context).colorScheme.onPrimary,
                       ),
                     )
                   : Text(
@@ -252,7 +252,11 @@ class _PhotoPicker extends StatelessWidget {
           child: CircleAvatar(
             radius: 18,
             backgroundColor: Theme.of(context).colorScheme.primary,
-            child: const Icon(Icons.camera_alt, size: 18, color: Colors.white),
+            child: Icon(
+              Icons.camera_alt,
+              size: 18,
+              color: Theme.of(context).colorScheme.onPrimary,
+            ),
           ),
         ),
       ],
