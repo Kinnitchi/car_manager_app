@@ -11,4 +11,5 @@ class RouteNames {
   static const fuelForm = '/fuel/form';
   static const reports = '/reports';
   static const settings = '/settings';
+  static const reminderForm = '/reminders/form';
 }

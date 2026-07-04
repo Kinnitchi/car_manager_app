@@ -8,24 +8,13 @@ import '../../presentation/screens/fuel/fuel_list_screen.dart';
 import '../../presentation/screens/maintenance/maintenance_form_screen.dart';
 import '../../presentation/screens/maintenance/maintenance_list_screen.dart';
 import '../../presentation/screens/reports/reports_screen.dart';
+import '../../presentation/screens/settings/reminder_form_screen.dart';
+import '../../presentation/screens/settings/settings_screen.dart';
 import '../../presentation/screens/vehicle_form/vehicle_form_screen.dart';
 import '../../presentation/screens/vehicle_selector/vehicle_selector_screen.dart';
 import '../../presentation/providers/vehicle_providers.dart';
 import '../../presentation/widgets/main_shell.dart';
 import 'route_names.dart';
-
-class _PlaceholderScreen extends StatelessWidget {
-  final String title;
-  const _PlaceholderScreen(this.title);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: Center(child: Text('$title — em construção')),
-    );
-  }
-}
 
 const _shellRoutes = {
   RouteNames.dashboard,
@@ -44,6 +33,25 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       if (isGoingToShellRoute && !hasSelectedVehicle) {
         return RouteNames.vehicleSelector;
+      }
+
+      // `extra` só existe em memória — some após hot restart ou quando o
+      // Android recria a tela na última rota (processo finalizado em
+      // segundo plano). Sem ele o formulário não sabe o veículo, então
+      // volta para a lista correspondente em vez de derrubar o app.
+      switch (state.matchedLocation) {
+        case RouteNames.maintenanceForm:
+          if (state.extra is! MaintenanceFormArgs) {
+            return RouteNames.maintenanceList;
+          }
+        case RouteNames.fuelForm:
+          if (state.extra is! FuelFormArgs) {
+            return RouteNames.fuelList;
+          }
+        case RouteNames.reminderForm:
+          if (state.extra is! ReminderFormArgs) {
+            return RouteNames.settings;
+          }
       }
       return null;
     },
@@ -77,6 +85,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return FuelFormScreen(vehicleId: args.vehicleId, fuel: args.fuel);
         },
       ),
+      GoRoute(
+        path: RouteNames.reminderForm,
+        builder: (context, state) {
+          final args = state.extra as ReminderFormArgs;
+          return ReminderFormScreen(
+            vehicleId: args.vehicleId,
+            reminder: args.reminder,
+          );
+        },
+      ),
       ShellRoute(
         builder: (context, state, child) => MainShell(child: child),
         routes: [
@@ -98,7 +116,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: RouteNames.settings,
-            builder: (_, __) => const _PlaceholderScreen('Configurações'),
+            builder: (_, __) => const SettingsScreen(),
           ),
         ],
       ),
