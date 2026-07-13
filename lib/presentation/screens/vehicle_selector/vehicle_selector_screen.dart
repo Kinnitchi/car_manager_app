@@ -30,7 +30,7 @@ class VehicleSelectorScreen extends ConsumerWidget {
               return VehicleCard(
                 vehicle: vehicle,
                 onTap: () {
-                  ref.read(selectedVehicleProvider.notifier).state = vehicle;
+                  ref.read(selectedVehicleProvider.notifier).select(vehicle);
                   context.go(RouteNames.dashboard);
                 },
                 onEdit: () =>
@@ -84,7 +84,7 @@ class VehicleSelectorScreen extends ConsumerWidget {
               result.when(
                 success: (_) {
                   if (ref.read(selectedVehicleProvider)?.id == vehicle.id) {
-                    ref.read(selectedVehicleProvider.notifier).state = null;
+                    ref.read(selectedVehicleProvider.notifier).select(null);
                   }
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(

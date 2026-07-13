@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/utils/formatters.dart';
+import '../../../core/utils/masked_number_formatter.dart';
 import '../../../core/utils/validators.dart';
 import '../../../domain/entities/vehicle_entity.dart';
 import '../../../services/image_service.dart';
@@ -40,7 +42,7 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
     _plateController = TextEditingController(text: v?.plate ?? '');
     _colorController = TextEditingController(text: v?.color ?? '');
     _mileageController = TextEditingController(
-      text: v?.currentMileage.toStringAsFixed(0) ?? '',
+      text: v != null ? Formatters.maskedNumber(v.currentMileage) : '',
     );
     _photoPath = v?.photoPath;
   }
@@ -75,9 +77,7 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
       year: int.parse(_yearController.text.trim()),
       plate: _plateController.text.trim().toUpperCase(),
       color: _colorController.text.trim(),
-      currentMileage: double.parse(
-        _mileageController.text.trim().replaceAll(',', '.'),
-      ),
+      currentMileage: Formatters.parseMaskedNumber(_mileageController.text)!,
       photoPath: _photoPath,
       createdAt: widget.vehicle?.createdAt ?? DateTime.now(),
     );
@@ -180,12 +180,8 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
                 labelText: 'Quilometragem atual',
                 suffixText: 'km',
               ),
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-              ],
+              keyboardType: TextInputType.number,
+              inputFormatters: const [MaskedNumberInputFormatter()],
               validator: Validators.mileage,
             ),
             const SizedBox(height: 32),

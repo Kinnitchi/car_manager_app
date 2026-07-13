@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/maintenance_types.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/masked_number_formatter.dart';
 import '../../../core/utils/validators.dart';
 import '../../../domain/entities/maintenance_entity.dart';
 import '../../providers/maintenance_providers.dart';
@@ -55,14 +55,14 @@ class _MaintenanceFormScreenState extends ConsumerState<MaintenanceFormScreen> {
     _selectedType = m?.type ?? MaintenanceType.oilChange;
     _selectedDate = m?.date ?? DateTime.now();
     _descriptionController = TextEditingController(text: m?.description ?? '');
+    final initialMileage = m?.mileage ?? vehicle?.currentMileage;
     _mileageController = TextEditingController(
-      text:
-          m?.mileage.toStringAsFixed(0) ??
-          vehicle?.currentMileage.toStringAsFixed(0) ??
-          '',
+      text: initialMileage != null
+          ? Formatters.maskedNumber(initialMileage)
+          : '',
     );
     _costController = TextEditingController(
-      text: m?.cost.toStringAsFixed(2) ?? '',
+      text: m != null ? Formatters.maskedNumber(m.cost, decimalDigits: 2) : '',
     );
     _workshopController = TextEditingController(text: m?.workshop ?? '');
     _notesController = TextEditingController(text: m?.notes ?? '');
@@ -95,14 +95,8 @@ class _MaintenanceFormScreenState extends ConsumerState<MaintenanceFormScreen> {
 
     setState(() => _isSaving = true);
 
-    final mileage = double.parse(
-      _mileageController.text.trim().replaceAll(',', '.'),
-    );
-    final cost = double.parse(
-      _costController.text.trim().isEmpty
-          ? '0'
-          : _costController.text.trim().replaceAll(',', '.'),
-    );
+    final mileage = Formatters.parseMaskedNumber(_mileageController.text)!;
+    final cost = Formatters.parseMaskedNumber(_costController.text) ?? 0;
 
     final entity = MaintenanceEntity(
       id: widget.maintenance?.id,
@@ -163,7 +157,7 @@ class _MaintenanceFormScreenState extends ConsumerState<MaintenanceFormScreen> {
     final result = await ref.read(updateVehicleUsecaseProvider).call(updated);
     result.when(
       success: (_) =>
-          ref.read(selectedVehicleProvider.notifier).state = updated,
+          ref.read(selectedVehicleProvider.notifier).select(updated),
       failure: (_) {}, // não bloqueia o fluxo principal por isso
     );
   }
@@ -219,12 +213,8 @@ class _MaintenanceFormScreenState extends ConsumerState<MaintenanceFormScreen> {
                 labelText: 'Quilometragem',
                 suffixText: 'km',
               ),
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-              ],
+              keyboardType: TextInputType.number,
+              inputFormatters: const [MaskedNumberInputFormatter()],
               validator: Validators.mileage,
             ),
             const SizedBox(height: 16),
@@ -234,11 +224,9 @@ class _MaintenanceFormScreenState extends ConsumerState<MaintenanceFormScreen> {
                 labelText: 'Valor gasto',
                 prefixText: 'R\$ ',
               ),
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+              keyboardType: TextInputType.number,
+              inputFormatters: const [
+                MaskedNumberInputFormatter(decimalDigits: 2),
               ],
             ),
             const SizedBox(height: 16),
