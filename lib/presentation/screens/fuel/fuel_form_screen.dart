@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/fuel_types.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/masked_number_formatter.dart';
 import '../../../core/utils/validators.dart';
 import '../../../domain/entities/fuel_entity.dart';
 import '../../providers/fuel_providers.dart';
@@ -51,18 +51,22 @@ class _FuelFormScreenState extends ConsumerState<FuelFormScreen> {
     _pricePerLiter = f?.pricePerLiter ?? 0;
 
     _litersController = TextEditingController(
-      text: f?.liters.toStringAsFixed(2) ?? '',
+      text: f != null
+          ? Formatters.maskedNumber(f.liters, decimalDigits: 2)
+          : '',
     )..addListener(_recalculatePrice);
 
     _totalValueController = TextEditingController(
-      text: f?.totalValue.toStringAsFixed(2) ?? '',
+      text: f != null
+          ? Formatters.maskedNumber(f.totalValue, decimalDigits: 2)
+          : '',
     )..addListener(_recalculatePrice);
 
+    final initialMileage = f?.mileage ?? vehicle?.currentMileage;
     _mileageController = TextEditingController(
-      text:
-          f?.mileage.toStringAsFixed(0) ??
-          vehicle?.currentMileage.toStringAsFixed(0) ??
-          '',
+      text: initialMileage != null
+          ? Formatters.maskedNumber(initialMileage)
+          : '',
     );
   }
 
@@ -78,12 +82,8 @@ class _FuelFormScreenState extends ConsumerState<FuelFormScreen> {
   /// evita inconsistência entre os três campos (o usuário nunca
   /// digita o preço por litro diretamente).
   void _recalculatePrice() {
-    final liters = double.tryParse(
-      _litersController.text.trim().replaceAll(',', '.'),
-    );
-    final total = double.tryParse(
-      _totalValueController.text.trim().replaceAll(',', '.'),
-    );
+    final liters = Formatters.parseMaskedNumber(_litersController.text);
+    final total = Formatters.parseMaskedNumber(_totalValueController.text);
     if (liters != null && liters > 0 && total != null) {
       setState(() => _pricePerLiter = total / liters);
     } else {
@@ -106,15 +106,9 @@ class _FuelFormScreenState extends ConsumerState<FuelFormScreen> {
 
     setState(() => _isSaving = true);
 
-    final liters = double.parse(
-      _litersController.text.trim().replaceAll(',', '.'),
-    );
-    final total = double.parse(
-      _totalValueController.text.trim().replaceAll(',', '.'),
-    );
-    final mileage = double.parse(
-      _mileageController.text.trim().replaceAll(',', '.'),
-    );
+    final liters = Formatters.parseMaskedNumber(_litersController.text)!;
+    final total = Formatters.parseMaskedNumber(_totalValueController.text)!;
+    final mileage = Formatters.parseMaskedNumber(_mileageController.text)!;
 
     final entity = FuelEntity(
       id: widget.fuel?.id,
@@ -170,7 +164,7 @@ class _FuelFormScreenState extends ConsumerState<FuelFormScreen> {
     final result = await ref.read(updateVehicleUsecaseProvider).call(updated);
     result.when(
       success: (_) =>
-          ref.read(selectedVehicleProvider.notifier).state = updated,
+          ref.read(selectedVehicleProvider.notifier).select(updated),
       failure: (_) {},
     );
   }
@@ -219,16 +213,12 @@ class _FuelFormScreenState extends ConsumerState<FuelFormScreen> {
                       labelText: 'Litros',
                       suffixText: 'L',
                     ),
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                    keyboardType: TextInputType.number,
+                    inputFormatters: const [
+                      MaskedNumberInputFormatter(decimalDigits: 2),
                     ],
                     validator: (v) {
-                      final val = double.tryParse(
-                        (v ?? '').trim().replaceAll(',', '.'),
-                      );
+                      final val = Formatters.parseMaskedNumber(v ?? '');
                       if (val == null || val <= 0) {
                         return 'Litros inválido';
                       }
@@ -244,16 +234,12 @@ class _FuelFormScreenState extends ConsumerState<FuelFormScreen> {
                       labelText: 'Valor total',
                       prefixText: 'R\$ ',
                     ),
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                    keyboardType: TextInputType.number,
+                    inputFormatters: const [
+                      MaskedNumberInputFormatter(decimalDigits: 2),
                     ],
                     validator: (v) {
-                      final val = double.tryParse(
-                        (v ?? '').trim().replaceAll(',', '.'),
-                      );
+                      final val = Formatters.parseMaskedNumber(v ?? '');
                       if (val == null || val <= 0) {
                         return 'Valor inválido';
                       }
@@ -277,12 +263,8 @@ class _FuelFormScreenState extends ConsumerState<FuelFormScreen> {
                 labelText: 'Quilometragem atual',
                 suffixText: 'km',
               ),
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-              ],
+              keyboardType: TextInputType.number,
+              inputFormatters: const [MaskedNumberInputFormatter()],
               validator: Validators.mileage,
             ),
             const SizedBox(height: 8),
