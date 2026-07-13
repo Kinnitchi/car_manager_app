@@ -1,3 +1,5 @@
+import 'formatters.dart';
+
 class Validators {
   Validators._();
 
@@ -23,8 +25,7 @@ class Validators {
     if (value == null || value.trim().isEmpty) {
       return 'Quilometragem é obrigatória';
     }
-    final normalized = value.trim().replaceAll(',', '.');
-    final km = double.tryParse(normalized);
+    final km = Formatters.parseMaskedNumber(value);
     if (km == null) return 'Quilometragem inválida';
     if (km < 0) return 'Quilometragem não pode ser negativa';
     return null;
