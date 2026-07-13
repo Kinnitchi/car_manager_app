@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/router/route_names.dart';
 
@@ -57,6 +58,7 @@ class MainShell extends StatelessWidget {
             NavigationRail(
               selectedIndex: currentIndex,
               onDestinationSelected: (index) {
+                HapticFeedback.selectionClick();
                 context.go(_destinations[index].path);
               },
               labelType: NavigationRailLabelType.all,
@@ -82,6 +84,7 @@ class MainShell extends StatelessWidget {
       bottomNavigationBar: NavigationBar(
         selectedIndex: currentIndex,
         onDestinationSelected: (index) {
+          HapticFeedback.selectionClick();
           context.go(_destinations[index].path);
         },
         destinations: _destinations
