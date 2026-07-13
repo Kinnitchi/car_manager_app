@@ -71,7 +71,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: RouteNames.maintenanceForm,
         builder: (context, state) {
-          final args = state.extra as MaintenanceFormArgs;
+          final args = state.extra;
+          if (args is! MaintenanceFormArgs) {
+            return const _MissingArgsRedirect(RouteNames.maintenanceList);
+          }
           return MaintenanceFormScreen(
             vehicleId: args.vehicleId,
             maintenance: args.maintenance,
@@ -81,14 +84,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: RouteNames.fuelForm,
         builder: (context, state) {
-          final args = state.extra as FuelFormArgs;
+          final args = state.extra;
+          if (args is! FuelFormArgs) {
+            return const _MissingArgsRedirect(RouteNames.fuelList);
+          }
           return FuelFormScreen(vehicleId: args.vehicleId, fuel: args.fuel);
         },
       ),
       GoRoute(
         path: RouteNames.reminderForm,
         builder: (context, state) {
-          final args = state.extra as ReminderFormArgs;
+          final args = state.extra;
+          if (args is! ReminderFormArgs) {
+            return const _MissingArgsRedirect(RouteNames.settings);
+          }
           return ReminderFormScreen(
             vehicleId: args.vehicleId,
             reminder: args.reminder,
@@ -127,5 +136,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 class _RouterRefreshNotifier extends ChangeNotifier {
   _RouterRefreshNotifier(Ref ref) {
     ref.listen(selectedVehicleProvider, (_, __) => notifyListeners());
+  }
+}
+
+class _MissingArgsRedirect extends StatelessWidget {
+  final String fallbackLocation;
+  const _MissingArgsRedirect(this.fallbackLocation);
+
+  @override
+  Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (context.mounted) context.go(fallbackLocation);
+    });
+    return const Scaffold(body: SizedBox.shrink());
   }
 }
