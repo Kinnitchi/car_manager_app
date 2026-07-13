@@ -33,4 +33,34 @@ final vehicleListProvider = StreamProvider<List<VehicleEntity>>((ref) {
 });
 
 /// Veículo atualmente selecionado (usado no Dashboard e demais telas).
-final selectedVehicleProvider = StateProvider<VehicleEntity?>((ref) => null);
+///
+/// Mantém-se sincronizado com o banco: se o veículo for editado em
+/// qualquer tela (formulário, sync de km ao registrar abastecimento ou
+/// manutenção), a instância selecionada é atualizada automaticamente;
+/// se for excluído, volta a null e o router redireciona ao seletor.
+final selectedVehicleProvider =
+    NotifierProvider<SelectedVehicleNotifier, VehicleEntity?>(
+      SelectedVehicleNotifier.new,
+    );
+
+class SelectedVehicleNotifier extends Notifier<VehicleEntity?> {
+  @override
+  VehicleEntity? build() {
+    ref.listen(vehicleListProvider, (_, next) {
+      final selectedId = state?.id;
+      if (selectedId == null) return;
+      next.whenData((vehicles) {
+        for (final v in vehicles) {
+          if (v.id == selectedId) {
+            state = v;
+            return;
+          }
+        }
+        state = null; // veículo excluído
+      });
+    });
+    return null;
+  }
+
+  void select(VehicleEntity? vehicle) => state = vehicle;
+}
