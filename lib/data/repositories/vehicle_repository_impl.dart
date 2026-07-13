@@ -35,6 +35,12 @@ class VehicleRepositoryImpl implements VehicleRepository {
       final model = _toModel(vehicle);
       final id = await isar.writeTxn(() => isar.vehicleModels.put(model));
       return Result.success(id);
+    } on IsarUniqueViolationError {
+      return Result.failure(
+        const ValidationFailure(
+          'Já existe um veículo cadastrado com essa placa.',
+        ),
+      );
     } catch (e) {
       return Result.failure(CacheFailure('Erro ao salvar veículo: $e'));
     }
@@ -46,6 +52,12 @@ class VehicleRepositoryImpl implements VehicleRepository {
       final model = _toModel(vehicle);
       await isar.writeTxn(() => isar.vehicleModels.put(model));
       return Result.success(null);
+    } on IsarUniqueViolationError {
+      return Result.failure(
+        const ValidationFailure(
+          'Já existe um veículo cadastrado com essa placa.',
+        ),
+      );
     } catch (e) {
       return Result.failure(CacheFailure('Erro ao atualizar veículo: $e'));
     }
